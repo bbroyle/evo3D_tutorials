@@ -1,7 +1,7 @@
 # <img src="docs/figures/evo3d_hex_b.png" width="100"/>  Tutorials for evo3D
 ---
 
-This site contains coding tutorials and visual examples demonstrating how to use the evo3D R package. The tutorials provide step-by-step workflows, while the figures below give quick overviews of common evo3D analyses and outputs.
+This site contains coding tutorials and visual examples demonstrating how to use the evo3D R package. The tutorials provide step-by-step workflows, while the figures below give quick overviews of how to run different evo3D analysis types.
 
 ## Package install instructions
 You can find package install instructions at:
@@ -15,6 +15,7 @@ https://github.com/bbroyle/evo3D
 - [Tutorial 1: Getting Started](docs/tutorial1_getting_started.html)
 - [Tutorial 2: Tuning Parameters](docs/tutorial2_tuning_parameters.html)
 - [Tutorial 3: Protein Complexes](docs/tutorial3_protein_complexes.html)
+- [Tutorial 4: Results Object in Detail](docs/tutorial4_results_object_in_detail.html)
   
 ---
 
