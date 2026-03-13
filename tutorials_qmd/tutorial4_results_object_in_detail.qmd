@@ -1,0 +1,101 @@
+---
+title: "Tutorial 4: Results Object"
+author: "Brad Broyles"
+format:
+  html:
+    theme: darkly
+    embed-resources: true
+editor: visual
+---
+
+In this tutorial we will explore the `run_evo3d()` results output object in detail. We will reuse the Hepatitis C Virus E1/E2 example
+
+```{r}
+e1 <- system.file("extdata", "e1_hepc_sorted.aln", package = "evo3D")
+e2 <- system.file("extdata", "e2_hepc_sorted.aln", package = "evo3D")
+pdb <- system.file("extdata", "e1e2_8fsj.pdb", package = "evo3D")
+```
+
+```{r}
+library(evo3D)
+
+# add some stats #
+sc <- list(calc_tajima = TRUE, calc_site_entropy = TRUE)
+
+# adjust some patch parameters #
+pc <- list(max_patch = 15, dist_cutoff = NA, distance_method = 'centroid')
+
+results <- run_evo3d(list(e1, e2), pdb, pdb_controls = pc, stat_controls = sc,
+                     detail_level = 2, # retain spatial haplotypes #
+                     verbose = 0
+                     )
+```
+
+We have covered `evo3d_df` in detail in tutorial 1.
+
+```{r}
+str(results, max.level = 1)
+```
+
+### final_msa_subsets
+
+Now `final_msa_subsets` is also populated as we set `detail_level` to 2. Individual spatial haploytpes (structure-informed MSA subsets) can be accessed through `msa_subset_id` column.
+
+```{r}
+id = results$evo3d_df$msa_subset_id[1]
+results$final_msa_subsets[[id]][1:6, 1:6]
+```
+
+### msa_info_sets
+
+Each input MSA will have information stored. The first MSA passed is always called msa1, followed by msa2 and so on. `msa_mat` is the original input data. `ref` has been constructed as a consensus sequence by defualt. `pep` is translated reference sequence. `seq_type` is auto detected nucleotide or protein sequence.
+
+```{r}
+str(results$msa_info_sets, max.level = 2)
+```
+
+### pdb_info_sets
+
+Each input PDB similar to MSA will have an entry in `pdb_info_sets`. `pdb` is the input object, `chain` indicates the chains in this PDB that were used for downstream MSA↔PDB mappings. `residue_dist` is a distance matrix between residues (default between alpha carbons). `residue_df` is a precursor to `evo3d_df` but contains spatial windows before any mapping to codons. It is worth exploring in a bit more depth.
+
+```{r}
+str(results$pdb_info_sets, max.level = 2)
+```
+
+```{r}
+head(results$pdb_info_sets$pdb1$residue_df)
+```
+
+In `residue_df` we see spatial windows (`patch`) as residue indexes before being mapped to codons. Additionally, solvent accessibility information is stored in the `sasa` (absolute accessibility) and `rsa` (relative accessibility) columns.
+
+### aln_info_sets
+
+`aln_info_sets` are stored per PDB entry, gathering all MSA that map to this PDB. It sits between the purely geometric windows of `pdb_info_sets` and the codon indexed (and possible codon collapsed) windows of `evo3d_df`. `coverage` was originally planned for quick coverage plot, but was not implemented as such. `aln_df` is an intermediatate between `residue_df` and the final `evo3d_df`. When homomultimers are in use or multiple PDB files input, `aln_df` stores the original residue anchored but codon indexed spatial windows before these windows are merge into one window per codon. `pos_mat` is likely the most important object here, as it is adjustable and allows `run_evo3d()` to restart upon adjustment.
+
+```{r}
+str(results$aln_info_sets, max.level = 2)
+```
+
+Examining alignment coverage
+
+```{r}
+results$aln_info_sets$pdb1$coverage
+```
+
+Each MSA to PDB mapping will have a pos_mat entry. Here showing only the first. It is highly nested, but it seemed optimal to adopt one structure that remained consistent and was easily extractable and inspectable by users.
+
+```{r}
+results$aln_info_sets$pdb1$pos_mat$msa1_pdb1_A[1:5,]
+```
+
+### call_info
+
+The last element is call_info which stores the parameters of the workflow.
+
+```{r}
+str(results$call_info)
+```
+
+## Next tutorials:
+
+5.  Custom statistics
