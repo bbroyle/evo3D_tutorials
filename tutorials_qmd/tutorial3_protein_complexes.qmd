@@ -1,0 +1,129 @@
+---
+title: "Tutorial 3: Protein Complexes"
+author: "Brad Broyles"
+format:
+  html:
+    theme: darkly
+    embed-resources: true
+editor: visual
+---
+
+In this tutorial we will see how evo3D handles protein complexes (multiple MSA inputs). In example 1 mapping multiple MSA to one PDB is handled automatically. In example 2, we will see how to set this manually if desired. In example 3, we will analyze the interface of E1 and E2 as it relates to E2's surface.
+
+## Example 1 (auto-chain mapping)
+
+The other dataset shipped with package is Hepatitis C Virus E1/E2 protein complex. One MSA for each gene, and one structure for the overall complex.
+
+```{r}
+e1 <- system.file("extdata", "e1_hepc_sorted.aln", package = "evo3D")
+e2 <- system.file("extdata", "e2_hepc_sorted.aln", package = "evo3D")
+pdb <- system.file("extdata", "e1e2_8fsj.pdb", package = "evo3D")
+```
+
+...
+
+```{r}
+library(evo3D)
+
+# add some stats #
+sc <- list(calc_tajima = TRUE, calc_site_entropy = TRUE)
+
+# we will use fixed size patches, and centroid based distance matrix #
+pc <- list(max_patch = 15, dist_cutoff = NA, distance_method = 'centroid')
+
+# when giving multiple MSA or PDB provide as a list #
+msa <- list(e1, e2)
+
+results <- run_evo3d(msa, pdb, pdb_controls = pc, stat_controls = sc)
+```
+
+In step 1.5 of the workflow which PDB chains are associated with each MSA. We can check this output in `results$call_info$run_grid`. kmer_match simply says what proportion of kmers (defualt k = 4) from the PDB sequence matches exactly in the MSA reference peptide sequence.
+
+```{r}
+results$call_info$run_grid
+```
+
+### Comparing E1 to E2 (msa1 vs msa2)
+
+```{r}
+# we can use ggplot for plotting #
+library(ggplot2)
+
+ggplot(results$evo3d_df, aes(msa, site_entropy, group = msa))+geom_boxplot()+
+  ggtitle('Comparing a single site metric\nbetween E1 and E2')+
+  theme_bw(base_size = 18)
+```
+
+```{r}
+#| warning: false
+ggplot(results$evo3d_df, aes(msa, tajima, group = msa))+geom_boxplot()+
+  ggtitle('Comparing a patch metric\nbetween E1 and E2')+
+  theme_bw(base_size = 18)
+```
+
+Though E2 has some positions of higher per-codon entropy it is hard to distinguish a difference between the two genes, while a patch level scan of the surface reveals stronger balancing selection, Tajima's D (selection favoring excess of intermediate-frequency variants)
+
+## Example 2 (manual chain matching and interfaces)
+
+Manual chain control is positional, the first chain entered will assign to msa1 and the second to msa2, and so on. In the case of an MSA that maps to multiple PDB chains (as in homomultimers), enter all chains as a concatenated string (ex: "ABC"), but this does not apply to this example.
+
+```{r}
+
+# msa is a list [[msa1]],[[msa2]] from the previous example
+results2 <- run_evo3d(msa, pdb, chain = c('A', 'E'))
+```
+
+The results (had we applied any statistics) will be the same as above as run_grid is the same.
+
+```{r}
+results2$call_info$run_grid
+```
+
+## Example 3 (capturing interfaces)
+
+A question we could ask is the interface of E1:E2 more conserved than the rest of surface patches of similar size. Here we will make surface patches of E2 while also extracting the interface residues from E2 that contact E1. By default interfaces are defined as 4 Å distance, and can be adjusted in `pdb_controls$interface_dist_cutoff`.
+
+```{r}
+
+# now just checking the surface of E2 #
+results3 <- run_evo3d(e2, pdb, interface_chain = 'A',
+                      verbose = 0)
+
+# checking size of interface #
+# interfaces are stored at the bottom of evo3d_df #
+tail(results3$evo3d_df, n = 1)
+
+```
+
+Now that we know the interface covers 22 codons, we will repeat the analysis, add stats, and compare the interface to surface patches of similar size.
+
+```{r}
+#| warning: false
+
+# Setting fixed count (22) codon patches of E2's surface
+results3 <- run_evo3d(e2, pdb, interface_chain = 'A',
+                      pdb_controls = list(
+                        max_patch = 22,
+                        dist_cutoff = NA
+                      ),
+                      stat_controls = list(
+                        calc_tajima = TRUE,
+                        calc_pi = TRUE
+                      ),
+                      verbose = 0)
+
+# add a tag for the interface row(s) to color the following plot
+results3$evo3d_df$interface = grepl('^interface', results3$evo3d_df$residue_id)
+
+ggplot(results3$evo3d_df, aes(pi, tajima, color = interface))+
+  geom_point(size = 2)+
+  ggtitle('Comparing the interface with E1\nto the rest of E2 surface patches')+
+  theme_bw(base_size = 18)
+```
+
+The interface is on the side of least nucleotide differences (pi), and under neutral selection (Tajima's D \~ 0) but other sites are of lower nucleotide diversity (pi) and Tajima's D.
+
+## Next tutorials:
+
+4.  Results object in detail
+5.  Custom statistics
